@@ -12,6 +12,10 @@ def __read_file(file_path: str) -> None:
         with open(file_path, "r") as file:
             return json.load(file)
     except:
+        path_split = file_path.split('/')
+        path_split.pop(-1)
+        dir_path = '/'.join(path_split)
+        os.makedirs(dir_path)
         with open(file_path, "w") as file:
             file.write("[]")
         return __read_file(file_path)
@@ -185,7 +189,3 @@ def remove_interested(event_id: int, interested_id: int) -> None:
             event['Interessados'][reminder].remove(interested_id)
 
     update_event(event)
-
-
-if __name__ == "__main__":
-    insert_interested(1074857977556783206, 387415608209309697)
