@@ -16,4 +16,4 @@ class Owner(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(Owner(bot), guild=discord.Object(917476914929741885))
+    await bot.add_cog(Owner(bot), guild=discord.Object(os.environ.get("GUILD_ID")))
