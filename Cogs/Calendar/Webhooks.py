@@ -94,12 +94,11 @@ class Webhooks(commands.Cog):
         await webhook_msg.reply(f"**<@&{os.environ.get('SUPPORT_ROLE')}>. Essa reunião começara em breve e ninguém clicou para ser lembrado.**")
         return
 
-    @tasks.loop(seconds=10)
+    @tasks.loop(seconds=60)
     async def event_reminder(self) -> None:
         print('Looping...')
         now = datetime.timestamp(datetime.now())
         events = fHandler.get_all_events()
-
         for event in events:
             seconds_until = event['Horário da Call'] - now
             interested = fHandler.get_all_interested(event['Event ID'])
@@ -154,4 +153,4 @@ class Webhooks(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(Webhooks(bot))
+    await bot.add_cog(Webhooks(bot), guild=discord.Object(os.environ.get("GUILD_ID")))
