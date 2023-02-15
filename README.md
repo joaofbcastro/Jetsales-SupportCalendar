@@ -55,7 +55,7 @@ Será necessário obter um webhook criado pelo próprio bot, caso o webhook util
 
 Para verificar se está tudo dentro dos conformes você pode enviar um disparo com o webhook. Você pode utilizar o site [Discohook](https://discohook.org/) para isso.
 
-![Realizando um envio de teste]()
+![Realizando um envio de teste](https://i.imgur.com/s43esQE.gif)
 
 ## Autores
 
