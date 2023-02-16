@@ -142,7 +142,7 @@ class Webhooks(commands.Cog):
         channel_webhooks = await inter.channel.webhooks()
         bot_webhooks = [wh for wh in channel_webhooks if wh.user == self.bot.user]
         if not bot_webhooks:
-            new_webhook = await inter.channel.create_webhook(name="Calendar")
+            new_webhook = await inter.channel.create_webhook(name="Support Calendar")
             bot_webhooks.append(new_webhook)
 
         content = f"Essa aplicação tem `{len(bot_webhooks)}` webhook(s) ativo(s) nesse canal."
