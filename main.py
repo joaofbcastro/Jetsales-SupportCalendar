@@ -25,8 +25,8 @@ class Client(commands.Bot):
                 await self.LoadCog(dir_path)
         print(f"[App] All cogs loaded")
 
-        activity = discord.Game(name="em manutenção.")
-        await self.change_presence(status=discord.Status.dnd, activity=activity)
+        activity = discord.Game(name="Jetsales")
+        await self.change_presence(status=discord.Status.online, activity=activity)
 
     async def LoadCog(self, root) -> None:
         files = os.listdir(root)
