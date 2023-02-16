@@ -61,29 +61,30 @@ class Webhooks(commands.Cog):
     def cog_unload(self) -> None:
         self.event_reminder.cancel()
 
-    async def disable_event_button(self, message_id: int) -> None:
-        channel = await self.bot.fetch_channel(os.environ.get("SUPPORT_CHANNEL"))
-        channel_webhooks = await channel.webhooks()
-        bot_webhooks = [wh for wh in channel_webhooks if wh.user == self.bot.user]
-        if not bot_webhooks:
-            return
-
-        webhook = bot_webhooks[0]
-        webhook_msg = await webhook.fetch_message(message_id)
-        await webhook_msg.edit(view=None)
-
-    async def get_webhook(self) -> discord.Webhook | None:
+    async def get_webhook_message(self, event_id: int) -> discord.Webhook | None:
         channel = await self.bot.fetch_channel(os.environ.get("SUPPORT_CHANNEL"))
         channel_webhooks = await channel.webhooks()
         bot_webhooks = [wh for wh in channel_webhooks if wh.user == self.bot.user]
         if not bot_webhooks:
             return None
-        return bot_webhooks[0]
-        
-    async def mention_support_role(self, event: dict):
-        webhook = await self.get_webhook()
-        webhook_msg = await webhook.fetch_message(event['Event ID'])
+        try: 
+            webhook_msg = await bot_webhooks[0].fetch_message(event_id)
+        except discord.NotFound:
+            return None
+        return webhook_msg
 
+    async def disable_event_button(self, event: dict) -> None:
+        webhook_msg = await self.get_webhook_message(event['Event ID'])
+        if webhook_msg:
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="Acessar reunião", url=event['Link da Call']))
+            await webhook_msg.edit(view=None)
+
+    async def mention_support_role(self, event: dict) -> None:
+        webhook_msg = await self.get_webhook_message(event)
+        if not webhook_msg:
+            return
+        
         embed = webhook_msg.embeds[0]
         for field in embed.fields:
             if field.name == "Interessados":
@@ -92,7 +93,6 @@ class Webhooks(commands.Cog):
         embed.add_field(name="Interessados", value=f"<@&{os.environ.get('SUPPORT_ROLE')}>")
         await webhook_msg.edit(embed=embed)
         await webhook_msg.reply(f"**<@&{os.environ.get('SUPPORT_ROLE')}>. Essa reunião começara em breve e ninguém clicou para ser lembrado.**")
-        return
 
     @tasks.loop(seconds=60)
     async def event_reminder(self) -> None:
@@ -106,7 +106,7 @@ class Webhooks(commands.Cog):
                 continue
             elif seconds_until <= 0:
                 fHandler.remove_event(event['Event ID'])
-                await self.disable_event_button(event['Event ID'])
+                await self.disable_event_button(event)
                 continue
             elif seconds_until <= 1800 and not interested:
                 await self.mention_support_role(event)
@@ -130,6 +130,7 @@ class Webhooks(commands.Cog):
 
         await sleep(3)
         view = NotificationButtons()
+        view.add_item(discord.ui.Button(label="Acessar reunião", url=event['Link da Call']))
         embed = fHandler.get_event_embed(event['Event ID'])
         embed.description = f"Para acessar a reunião basta [clicar aqui]({event['Link da Call']}). Vale lembrar que a reunião acontecerá acontecerá <t:{event['Horário da Call']}:R>."
         await webhook_msg.edit(content=None, embed=embed, view=view)
