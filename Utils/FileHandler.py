@@ -7,7 +7,14 @@ from datetime import datetime
 file_path = "./Data/EventsList.json"
 
 def __read_file(file_path: str) -> None:
-    """Retorna o arquivo, se não existir, será criado."""
+    """
+    Retorna o arquivo, se não existir, será criado.
+
+    Parameters
+    ----------
+    file_path: `str`
+        O caminho para o arquivo.
+    """
     try: 
         with open(file_path, "r") as file:
             return json.load(file)
@@ -21,10 +28,28 @@ def __read_file(file_path: str) -> None:
         return __read_file(file_path)
 
 def __write_file(file_path: str, file) -> None:
+    """
+    Escreve dados dentro do arquivo escolhido.
+
+    Parameters
+    ----------
+    file_path: `str`
+        O caminho para o arquivo.
+    file:
+        Os dados a serem escritos no arquivo.
+    """
     with open(file_path, "w") as f:
         json.dump(file, f, indent=2)
 
 def __message_to_dict(message: discord.Message) -> dict:
+    """
+    Transforma a mensagem enviada pelo Webhook em um dicionario Python.
+    
+    Parameters
+    ----------
+    message: `discord.Message`
+        A mensagem que servirá de base para o dicionário.
+    """
     message_dict = {"Event ID": message.id}
     for line in message.content.splitlines():
         separator_index = line.find(": ")
@@ -49,6 +74,14 @@ def __message_to_dict(message: discord.Message) -> dict:
     return message_dict
 
 def get_reminder_category(time: float) -> str:
+    """
+    Verifica em que categoria o intervalo de tempo se encaixa.
+    
+    Parameters
+    ----------
+    time: `float`
+        O tempo em segundos a ser usado de referência.
+    """
     reminder_category = ' '
     if time <= 300:
         reminder_category = 'Lembrar5'
@@ -62,10 +95,20 @@ def get_reminder_category(time: float) -> str:
     return reminder_category
 
 def get_all_events() -> list:
-    """Retorna uma lista com todos os eventos armazenados"""
+    """
+    Retorna uma lista com todos os eventos armazenados no arquivo.
+    """
     return __read_file(file_path)
 
 def get_all_interested(event_id: int) -> list:
+    """
+    Retorna uma lista com todos os interessados no evento.
+    
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    """
     event = get_event(event_id)
     interested = []
     for reminder_list in event['Interessados'].values():
@@ -74,7 +117,14 @@ def get_all_interested(event_id: int) -> list:
     return interested
 
 def get_event(event_id: int) -> dict | None:
-    """Se o evento não existir `None` será retornado."""
+    """
+    Busca o evento na lista de eventos. Caso o evento não exista, será criado.
+
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    """
     file = __read_file(file_path)
 
     for event in file:
@@ -83,6 +133,14 @@ def get_event(event_id: int) -> dict | None:
     return None
 
 def get_event_embed(event_id: int) -> discord.Embed:
+    """
+    Busca o evento e retorna um `discord.Embed` com os dados do evento.
+
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    """
     event = get_event(event_id)
     message_url = f"https://discord.com/channels/{os.environ.get('GUILD_ID')}/{os.environ.get('SUPPORT_CHANNEL')}/{event_id}"
     embed = discord.Embed(
@@ -110,7 +168,19 @@ def get_event_embed(event_id: int) -> discord.Embed:
     return embed
 
 def insert_event(message: discord.Message) -> bool:
-    """Retorna `False` se o evento já existir."""
+    """
+    Adiciona um evento na lista de eventos.
+
+    Parameters
+    ----------
+    message: `discord.Message`
+        Mensagem a qual servirá de base para criar o evento.
+
+    Returns
+    -------
+    `True`: Caso o evento seja criado.
+    `False`: Caso o evento seja encontrado na lista de eventos.
+    """
     if get_event(message):
         return False
     else:
@@ -120,7 +190,15 @@ def insert_event(message: discord.Message) -> bool:
         __write_file(file_path, file)
         return True
 
-def update_event(new_event) -> None:
+def update_event(new_event: dict) -> None:
+    """
+    Atualiza um evento dentro da lista de eventos.
+
+    Parameters
+    ----------
+    new_event: `dict`
+        Um dicionário Python com os dados do evento.
+    """
     events = get_all_events()
     for event in events:
         if event['Event ID'] == new_event['Event ID']:
@@ -129,6 +207,14 @@ def update_event(new_event) -> None:
     __write_file(file_path, events)
 
 def remove_event(event_id: int) -> None:
+    """
+    Remove um evento da lista de eventos.
+    
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    """
     events = get_all_events()
     for event in events:
         if event['Event ID'] == event_id:
@@ -136,6 +222,16 @@ def remove_event(event_id: int) -> None:
     __write_file(file_path, events)
 
 async def remind_users(self, event: dict, reminder: str) -> None:
+    """
+    Notifica os usuários interessados no evento.
+
+    Parameters
+    ----------
+    event: `dict`
+        Um dicionário Python com os dados do evento.
+    reminder: `str`
+        A categoria em de lembrete em que o evento se encontra.
+    """
     for user_id in event['Interessados'][reminder]:
         user: discord.User = self.bot.get_user(user_id)
         message_url = f"https://discord.com/channels/{os.environ.get('GUILD_ID')}/{os.environ.get('SUPPORT_CHANNEL')}/{event['Event ID']}"
@@ -154,6 +250,21 @@ async def remind_users(self, event: dict, reminder: str) -> None:
         switch_to_next_reminder(event['Event ID'], user.id)
 
 def insert_interested(event_id: int, interested_id: int) -> bool:
+    """
+    Insere um usuário interessado a ser lembrado do evento.
+    
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    interested_id: `int`
+        O id do usuário que deseja ser lembrado do evento.
+
+    Returns
+    -------
+    `True`: Caso o interessado seja adicionado a lista.
+    `False`: Caso o interessado já esteja em uma das listas.
+    """
     event = get_event(event_id)
     now = datetime.timestamp(datetime.now())
     seconds_until = event['Horário da Call'] - now
@@ -168,6 +279,16 @@ def insert_interested(event_id: int, interested_id: int) -> bool:
     return True
 
 def switch_to_next_reminder(event_id: int, interested_id: int) -> None:
+    """
+    Verifica em que posição dos lembretes o usuário se encontra e o passa para o proximo.
+    
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    interested_id: `int`
+        O id do usuário que deseja ser lembrado do evento.
+    """
     event = get_event(event_id)
     reminders: dict = event['Interessados']
 
@@ -182,6 +303,16 @@ def switch_to_next_reminder(event_id: int, interested_id: int) -> None:
     update_event(event)
 
 def remove_interested(event_id: int, interested_id: int) -> None:
+    """
+    Remove um usuário das listas de interessados.
+    
+    Parameters
+    ----------
+    event_id: `int`
+        O identificador do evento, ou id da mensagem.
+    interested_id: `int`
+        O id do usuário que deseja ser lembrado do evento.
+    """
     event = get_event(event_id)
 
     for reminder, list in event['Interessados'].items():
