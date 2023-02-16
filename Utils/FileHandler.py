@@ -118,7 +118,7 @@ def get_all_interested(event_id: int) -> list:
 
 def get_event(event_id: int) -> dict | None:
     """
-    Busca o evento na lista de eventos. Caso o evento não exista, será criado.
+    Busca o evento na lista de eventos.
 
     Parameters
     ----------
