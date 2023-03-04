@@ -1,10 +1,11 @@
 import os
 import json
 import discord
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 
 file_path = "./Data/EventsList.json"
+
 
 def __read_file(file_path: str) -> None:
     """
@@ -15,7 +16,7 @@ def __read_file(file_path: str) -> None:
     file_path: `str`
         O caminho para o arquivo.
     """
-    try: 
+    try:
         with open(file_path, "r") as file:
             return json.load(file)
     except:
@@ -26,6 +27,7 @@ def __read_file(file_path: str) -> None:
         with open(file_path, "w") as file:
             file.write("[]")
         return __read_file(file_path)
+
 
 def __write_file(file_path: str, file) -> None:
     """
@@ -41,27 +43,34 @@ def __write_file(file_path: str, file) -> None:
     with open(file_path, "w") as f:
         json.dump(file, f, indent=2)
 
+
 def __message_to_dict(message: discord.Message) -> dict:
     """
     Transforma a mensagem enviada pelo Webhook em um dicionario Python.
-    
+
     Parameters
     ----------
     message: `discord.Message`
         A mensagem que servirá de base para o dicionário.
     """
+    keys = [
+        "Nome do Cliente",
+        "Link da Call",
+        "Hora da Call",
+        "Zap do Cliente",
+        "Empresa do CLiente",
+        "Objetivo da Call",
+        "Responsável pelo agendamento"
+    ]
+
     message_dict = {"Event ID": message.id}
-    for line in message.content.splitlines():
-        separator_index = line.find(": ")
-        key = line[:separator_index]
-        value = line[(separator_index + 2):]
+    for i, line in enumerate(message.content.splitlines()):
+        key = keys[i]
+        value = line
 
-        if key == "Horário da Call":
-            call_datetime = datetime.strptime(value, "%I:%M%p - %A, %B %d, %Y")
-            value = round(datetime.timestamp(call_datetime))
-
-        if key == "Url do Cliente":
-            key = "Objetivo da Call"
+        if key == "Hora da Call":
+            call_datetime = datetime.strptime(value, "%d.%m.%Y %H:%M")
+            value = round(datetime.timestamp(call_datetime)) + 7200
 
         message_dict[key] = value
 
@@ -73,10 +82,11 @@ def __message_to_dict(message: discord.Message) -> dict:
     }
     return message_dict
 
+
 def get_reminder_category(time: float) -> str:
     """
     Verifica em que categoria o intervalo de tempo se encaixa.
-    
+
     Parameters
     ----------
     time: `float`
@@ -94,16 +104,18 @@ def get_reminder_category(time: float) -> str:
     print(time, reminder_category)
     return reminder_category
 
+
 def get_all_events() -> list:
     """
     Retorna uma lista com todos os eventos armazenados no arquivo.
     """
     return __read_file(file_path)
 
+
 def get_all_interested(event_id: int) -> list:
     """
     Retorna uma lista com todos os interessados no evento.
-    
+
     Parameters
     ----------
     event_id: `int`
@@ -115,6 +127,7 @@ def get_all_interested(event_id: int) -> list:
         for i in reminder_list:
             interested.append(i)
     return interested
+
 
 def get_event(event_id: int) -> dict | None:
     """
@@ -131,6 +144,7 @@ def get_event(event_id: int) -> dict | None:
         if event['Event ID'] == event_id:
             return event
     return None
+
 
 def get_event_embed(event_id: int) -> discord.Embed:
     """
@@ -156,16 +170,18 @@ def get_event_embed(event_id: int) -> discord.Embed:
     )
     embed.add_field(
         name="Informações do cliente",
-        value=f"**Cliente**: {event['Nome do Cliente'].title()}\n**Empresa**: {event['Nome da Empresa']}",
+        value=f"**Cliente**: {event['Nome do Cliente'].title()}\n**Empresa**: {event['Empresa do CLiente']}",
         inline=False
     )
     embed.add_field(
         name="Data da reunião",
-        value=f"<t:{event['Horário da Call']}:F>",
+        value=f"<t:{event['Hora da Call']}:F>",
         inline=False
     )
-    embed.set_footer(text=f"Agendado por {event['Responsável pelo agendamento'].title()}")
+    embed.set_footer(
+        text=f"Agendado por {event['Responsável pelo agendamento'].title()}")
     return embed
+
 
 def insert_event(message: discord.Message) -> bool:
     """
@@ -190,6 +206,7 @@ def insert_event(message: discord.Message) -> bool:
         __write_file(file_path, file)
         return True
 
+
 def update_event(new_event: dict) -> None:
     """
     Atualiza um evento dentro da lista de eventos.
@@ -206,10 +223,11 @@ def update_event(new_event: dict) -> None:
             events[event_index] = new_event
     __write_file(file_path, events)
 
+
 def remove_event(event_id: int) -> None:
     """
     Remove um evento da lista de eventos.
-    
+
     Parameters
     ----------
     event_id: `int`
@@ -220,6 +238,7 @@ def remove_event(event_id: int) -> None:
         if event['Event ID'] == event_id:
             events.remove(event)
     __write_file(file_path, events)
+
 
 async def remind_users(self, event: dict, reminder: str) -> None:
     """
@@ -242,17 +261,18 @@ async def remind_users(self, event: dict, reminder: str) -> None:
         embed.clear_fields()
         embed.remove_footer()
         embed.set_thumbnail(url="https://i.imgur.com/92JXVus.png")
-        embed.description = f"Esse é um lembrete da reunião que acontecerá <t:{event['Horário da Call']}:R> com o cliente **{event['Nome do Cliente']}**.\n\nSe não puder estar presente nessa reunião, favor comunicar ao seu gestor."
+        embed.description = f"Esse é um lembrete da reunião que acontecerá <t:{event['Hora da Call']}:R> com o cliente **{event['Nome do Cliente']}**.\n\nSe não puder estar presente nessa reunião, favor comunicar ao seu gestor."
         try:
             await user.send(embed=embed, view=view)
         except:
             pass
         switch_to_next_reminder(event['Event ID'], user.id)
 
+
 def insert_interested(event_id: int, interested_id: int) -> bool:
     """
     Insere um usuário interessado a ser lembrado do evento.
-    
+
     Parameters
     ----------
     event_id: `int`
@@ -266,8 +286,8 @@ def insert_interested(event_id: int, interested_id: int) -> bool:
     `False`: Caso o interessado já esteja em uma das listas.
     """
     event = get_event(event_id)
-    now = datetime.timestamp(datetime.now())
-    seconds_until = event['Horário da Call'] - now
+    now = datetime.timestamp(datetime.utcnow())
+    seconds_until = event['Hora da Call'] - now
 
     for reminder_list in event['Interessados'].values():
         if interested_id in reminder_list:
@@ -278,10 +298,11 @@ def insert_interested(event_id: int, interested_id: int) -> bool:
     update_event(event)
     return True
 
+
 def switch_to_next_reminder(event_id: int, interested_id: int) -> None:
     """
     Verifica em que posição dos lembretes o usuário se encontra e o passa para o proximo.
-    
+
     Parameters
     ----------
     event_id: `int`
@@ -302,10 +323,11 @@ def switch_to_next_reminder(event_id: int, interested_id: int) -> None:
             insert_in_next = True
     update_event(event)
 
+
 def remove_interested(event_id: int, interested_id: int) -> None:
     """
     Remove um usuário das listas de interessados.
-    
+
     Parameters
     ----------
     event_id: `int`

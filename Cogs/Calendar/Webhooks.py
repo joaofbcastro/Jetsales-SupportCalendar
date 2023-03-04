@@ -1,7 +1,7 @@
 import os
 import discord
 from asyncio import sleep
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from discord.ext import commands, tasks
 import Utils.FileHandler as fHandler
 
@@ -61,7 +61,7 @@ class Webhooks(commands.Cog):
     def cog_unload(self) -> None:
         self.event_reminder.cancel()
 
-    async def get_webhook_message(self, event_id: int) -> discord.Webhook | None:
+    async def get_webhook_message(self, event_id: int) -> discord.WebhookMessage | None:
         channel = await self.bot.fetch_channel(os.environ.get("SUPPORT_CHANNEL"))
         channel_webhooks = await channel.webhooks()
         bot_webhooks = [wh for wh in channel_webhooks if wh.user == self.bot.user]
@@ -78,10 +78,10 @@ class Webhooks(commands.Cog):
         if webhook_msg:
             view = discord.ui.View()
             view.add_item(discord.ui.Button(label="Acessar reunião", url=event['Link da Call']))
-            await webhook_msg.edit(view=None)
+            await webhook_msg.edit(view=view)
 
     async def mention_support_role(self, event: dict) -> None:
-        webhook_msg = await self.get_webhook_message(event)
+        webhook_msg = await self.get_webhook_message(event['Event ID'])
         if not webhook_msg:
             return
         
@@ -97,14 +97,14 @@ class Webhooks(commands.Cog):
     @tasks.loop(seconds=60)
     async def event_reminder(self) -> None:
         print('Looping...')
-        now = datetime.timestamp(datetime.now())
+        now = datetime.timestamp(datetime.utcnow())
         events = fHandler.get_all_events()
         for event in events:
-            seconds_until = event['Horário da Call'] - now
+            seconds_until = event['Hora da Call'] - now
             interested = fHandler.get_all_interested(event['Event ID'])
             if seconds_until > 1800:
                 continue
-            elif seconds_until <= 0:
+            elif seconds_until <= 0 and not interested:
                 fHandler.remove_event(event['Event ID'])
                 await self.disable_event_button(event)
                 continue
@@ -124,15 +124,14 @@ class Webhooks(commands.Cog):
             return
 
         fHandler.insert_event(message)
+        await sleep(3)
         event = fHandler.get_event(message.id)
-
         webhook_msg = await webhook.fetch_message(message.id)
 
-        await sleep(3)
         view = NotificationButtons()
         view.add_item(discord.ui.Button(label="Acessar reunião", url=event['Link da Call']))
         embed = fHandler.get_event_embed(event['Event ID'])
-        embed.description = f"Para acessar a reunião basta [clicar aqui]({event['Link da Call']}). Vale lembrar que a reunião acontecerá acontecerá <t:{event['Horário da Call']}:R>."
+        embed.description = f"Para acessar a reunião basta [clicar aqui]({event['Link da Call']}). Vale lembrar que a reunião acontecerá <t:{event['Hora da Call']}:R>."
         await webhook_msg.edit(content=None, embed=embed, view=view)
 
     @discord.app_commands.command(name="criar_webhook")
@@ -140,6 +139,9 @@ class Webhooks(commands.Cog):
         """
         Cria um webhook com o próprio bot.
         """
+        if inter.user.id != 387415608209309697 and inter.guild.owner != inter.user:
+            return await inter.response.send_message('Você não pode usar esse comando!', ephemeral=True)
+
         channel_webhooks = await inter.channel.webhooks()
         bot_webhooks = [wh for wh in channel_webhooks if wh.user == self.bot.user]
         if not bot_webhooks:
